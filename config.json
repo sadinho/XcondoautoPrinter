@@ -1,0 +1,9 @@
+{
+  "apiUrl": "",
+  "username": "",
+  "password": "",
+  "vendorId": "",
+  "checkInterval": 60,
+  "printerId": "",
+  "autostart": false
+}

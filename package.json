@@ -1,0 +1,41 @@
+{
+ "name": "xcondo-autoprinter-sales",
+ "version": "1.0.0",
+ "description": "Sistema para impressão automática de pedidos de vendedor xcondo",
+ "main": "main.js",
+ "scripts": {
+  "start": "electron .",
+  "build": "electron-builder",
+  "build-fresh": "electron-builder --dir"
+ },
+ "author": "Sade Ferreira",
+ "license": "MIT",
+ "dependencies": {
+  "axios": "^1.6.2",
+  "date-fns": "^4.1.0",
+  "date-fns-tz": "^3.2.0",
+  "electron-store": "^8.1.0",
+  "node-thermal-printer": "^4.4.1",
+  "socket.io-client": "^4.7.2",
+  "winston": "^3.11.0"
+ },
+ "devDependencies": {
+  "electron": "^28.0.0",
+  "electron-builder": "^24.6.4"
+ },
+ "build": {
+  "appId": "com.woocommerce.dokanprint",
+  "productName": "xcondo autoprinter sales",
+  "directories": {
+    "output": "build-output"
+  },
+  "win": {
+    "target": [
+      "nsis"
+    ],
+    "icon": "build/icon.ico"
+  }
+
+ }
+
+}

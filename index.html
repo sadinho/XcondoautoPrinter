@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Xcondo Pedidos auto Print</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      color: #2c3e50;
+      text-align: center;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #eee;
+    }
+
+    .tabs {
+      display: flex;
+      margin-bottom: 20px;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .tab {
+      padding: 10px 20px;
+      cursor: pointer;
+      border: none;
+      background: none;
+      font-size: 16px;
+      font-weight: 500;
+      color: #555;
+    }
+
+    .tab.active {
+      color: #2980b9;
+      border-bottom: 2px solid #2980b9;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+
+    button {
+      background-color: #2980b9;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      background-color: #3498db;
+    }
+
+    button:disabled {
+      background-color: #95a5a6;
+      cursor: not-allowed;
+    }
+
+    .button-danger {
+      background-color: #e74c3c;
+    }
+
+    .button-danger:hover {
+      background-color: #c0392b;
+    }
+
+    .status-indicator {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 5px;
+    }
+
+    .status-running {
+      background-color: #27ae60;
+    }
+
+    .status-stopped {
+      background-color: #e74c3c;
+    }
+
+    .status-bar {
+      background-color: #f9f9f9;
+      padding: 10px;
+      margin-top: 20px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .notification {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+      display: none;
+    }
+
+    .notification.error {
+      background-color: #fceaea;
+      border: 1px solid #e74c3c;
+      color: #c0392b;
+    }
+
+    .notification.success {
+      background-color: #e8f8f5;
+      border: 1px solid #27ae60;
+      color: #27ae60;
+    }
+
+    .notification.info {
+      background-color: #eaf2f8;
+      border: 1px solid #3498db;
+      color: #2980b9;
+    }
+
+    .order-entry:last-child {
+      border-bottom: none;
+    }
+
+    .timestamp {
+      font-size: 12px;
+      color: #7f8c8d;
+    }
+
+    .test-print-container {
+      margin-top: 20px;
+      padding: 15px;
+      border: 1px dashed #ddd;
+      border-radius: 4px;
+    }
+
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    .orders-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    .orders-table th,
+    .orders-table td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .orders-table th {
+      background-color: #f5f5f5;
+      font-weight: 600;
+    }
+
+    .orders-table tr:hover {
+      background-color: #f9f9f9;
+    }
+
+    .empty-table {
+      text-align: center;
+      padding: 20px;
+      color: #777;
+    }
+
+    .print-status {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 5px;
+    }
+
+    .print-success {
+      background-color: #27ae60;
+    }
+
+    .print-failed {
+      background-color: #e74c3c;
+    }
+
+    .print-pending {
+      background-color: #f39c12;
+    }
+
+    .action-btn {
+      padding: 5px 10px;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .action-btn:hover {
+      background-color: #2980b9;
+    }
+
+    .action-btn:disabled {
+      background-color: #95a5a6;
+      cursor: not-allowed;
+    }
+
+    .refresh-container {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 10px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .search-container {
+      flex-grow: 1;
+    }
+
+    .search-input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 5px 30px 5px 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    .clear-search-btn {
+      position: absolute;
+      right: 5px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #999;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .clear-search-btn:hover {
+      color: #e74c3c;
+    }
+
+    .refresh-btn,
+    .clear-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background-color: #f5f5f5;
+      border: 1px solid #ddd;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      color: #555;
+    }
+
+    .refresh-btn:hover,
+    .clear-btn:hover {
+      background-color: #eee;
+    }
+
+    .refresh-btn svg,
+    .clear-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .clear-btn {
+      color: #e74c3c;
+    }
+
+    .clear-btn:hover {
+      background-color: #fadbd8;
+    }
+
+    .config-button {
+      background: none;
+      border: none;
+      color: #3498db;
+      text-decoration: underline;
+      cursor: pointer;
+      padding: 0;
+      font-size: 14px;
+      margin-left: 10px;
+    }
+
+    .config-button:hover {
+      color: #2980b9;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>Xcondo Pedidos auto Print</h1>
+
+    <div id="notification" class="notification"></div>
+
+    <!-- Conteúdo Principal (sempre visível) -->
+    <div id="mainContent">
+      <div class="tabs">
+        <button class="tab active" data-tab="config">Configurações</button>
+        <button class="tab" data-tab="log">Log de Pedidos</button>
+      </div>
+
+      <div id="config" class="tab-content active">
+        <h2>Configurações da API</h2>
+        <div class="form-group">
+          <label for="apiUrl">URL da Loja (ex: https://sualoja.com.br)</label>
+          <input type="text" id="apiUrl" placeholder="https://sualoja.com.br">
+        </div>
+
+        <div class="form-group">
+          <label for="username">Nome de Usuário</label>
+          <input type="text" id="username" placeholder="admin">
+        </div>
+
+        <div class="form-group">
+          <label for="password">Senha</label>
+          <input type="password" id="password" placeholder="senha">
+        </div>
+
+        <div class="form-group">
+          <label for="vendorId">ID do Vendedor (Dokan)</label>
+          <input type="text" id="vendorId" placeholder="123">
+        </div>
+
+        <div class="form-group">
+          <label for="checkInterval">Intervalo de Verificação (segundos)</label>
+          <input type="text" id="checkInterval" placeholder="60" value="60">
+        </div>
+
+        <h2>Configurações da Impressora</h2>
+        <div class="form-group">
+          <label for="printerSelect">Selecione a Impressora</label>
+          <select id="printerSelect">
+            <option value="">Carregando impressoras...</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="autostart">
+            <input type="checkbox" id="autostart"> Iniciar monitoramento automaticamente
+          </label>
+        </div>
+
+        <div class="test-print-container">
+          <h3>Teste de Impressão</h3>
+          <p>Clique no botão abaixo para imprimir um recibo de teste:</p>
+          <button id="testPrint">Imprimir Teste</button>
+        </div>
+
+        <button id="saveConfig">Salvar Configurações</button>
+      </div>
+
+      <div id="log" class="tab-content">
+        <h2>Log de Pedidos</h2>
+        <div class="refresh-container">
+          <div class="search-container">
+            <div class="search-input-wrapper">
+              <input type="text" id="orderSearchInput" placeholder="Buscar pedido..." class="search-input">
+              <button id="clearSearchButton" class="clear-search-btn" style="display: none;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <button id="clearHistoryButton" class="clear-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 6h18"></path>
+              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+            </svg>
+            Limpar Histórico
+          </button>
+          <button id="refreshOrdersButton" class="refresh-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+            </svg>
+            Atualizar
+          </button>
+        </div>
+        <div class="table-container">
+          <table id="ordersTable" class="orders-table">
+            <thead>
+              <tr>
+                <th>Pedido</th>
+                <th>Data</th>
+                <th>Cliente</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Impressão</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colspan="7" class="empty-table">Nenhum pedido processado ainda.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="status-bar">
+        <div>
+          <span>Status: </span>
+          <span id="statusIndicator" class="status-indicator status-stopped"></span>
+          <span id="statusText">Monitoramento Parado</span>
+          <button id="showConfigButton" class="config-button">Configurações</button>
+        </div>
+        <div>
+          <button id="startMonitoring">Iniciar Monitoramento</button>
+          <button id="stopMonitoring" class="button-danger" disabled>Parar Monitoramento</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+
+</html>
