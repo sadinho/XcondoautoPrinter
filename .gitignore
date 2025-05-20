@@ -2,4 +2,5 @@
 **/logs/debug.log
 *.log
 node_modules/
+build-output/
 *.txt
