@@ -34,13 +34,13 @@ let orders = []; // Array para armazenar os pedidos
 function showMainContent() {
   // Oculta a tela de login
   if (loginScreen) loginScreen.style.display = 'none';
-  
+
   // Mostra o conteúdo principal
   mainContent.style.display = 'block';
-  
+
   // A primeira aba (config) fica visível por padrão
   document.getElementById('config').classList.add('active');
-  
+
   // Mostra notificação de boas-vindas
   showNotification('info', 'Bem-vindo ao sistema de impressão automática de pedidos!', 3000);
 }
@@ -49,11 +49,11 @@ function showMainContent() {
 tabButtons.forEach(button => {
   button.addEventListener('click', () => {
     const tabId = button.getAttribute('data-tab');
-    
+
     // Alterna para a aba clicada sem verificação de permissão
     tabButtons.forEach(btn => btn.classList.remove('active'));
     tabContents.forEach(content => content.classList.remove('active'));
-    
+
     button.classList.add('active');
     document.getElementById(tabId).classList.add('active');
   });
@@ -113,7 +113,7 @@ function addOrderToTable(order, printStatus = 'pending') {
   // Formata a data
   let formattedDate = '';
   let formattedTime = '';
-  
+
   try {
     const orderDate = new Date(order.date_created);
     formattedDate = orderDate.toLocaleDateString('pt-BR');
@@ -125,10 +125,10 @@ function addOrderToTable(order, printStatus = 'pending') {
   }
 
   // Adiciona os dados do pedido com verificações para evitar erros
-  const clientName = order.billing ? 
-    `${order.billing.first_name || ''} ${order.billing.last_name || ''}`.trim() : 
+  const clientName = order.billing ?
+    `${order.billing.first_name || ''} ${order.billing.last_name || ''}`.trim() :
     'Cliente não especificado';
-    
+
   const total = order.total ? parseFloat(order.total).toFixed(2) : '0.00';
 
   row.innerHTML = `
@@ -282,7 +282,7 @@ function getOrderDateFromRow(row) {
 function filterOrders(searchTerm) {
   const tbody = ordersTable.querySelector('tbody');
   if (!tbody) return;
-  
+
   const rows = tbody.querySelectorAll('tr');
 
   // Controla a visibilidade do botão de limpar busca
@@ -380,10 +380,10 @@ window.addEventListener('DOMContentLoaded', () => {
   if (loginScreen) {
     loginScreen.style.display = 'none';
   }
-  
+
   // Mostra o conteúdo principal
   mainContent.style.display = 'block';
-  
+
   // Verifica se o monitoramento já está ativo
   window.electronAPI.getMonitoringStatus().then(status => {
     updateMonitoringStatus(status.isRunning);
@@ -601,6 +601,8 @@ testPrintButton.addEventListener('click', async () => {
     id: 'TESTE-' + Date.now(),
     date_created: new Date().toISOString(),
     status: 'processing',
+    payment_method_title: 'Pagamento via PIX',
+    payment_method: 'pix',
     total: '99.99',
     billing: {
       first_name: 'Cliente',
