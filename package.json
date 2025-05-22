@@ -6,7 +6,8 @@
  "scripts": {
   "start": "electron .",
   "build": "electron-builder",
-  "build-fresh": "electron-builder --dir"
+  "build-fresh": "electron-builder --dir",
+  "postinstall": "electron-builder install-app-deps"
  },
  "author": "Sade Ferreira",
  "license": "MIT",
@@ -15,26 +16,39 @@
   "date-fns": "^4.1.0",
   "date-fns-tz": "^3.2.0",
   "electron-store": "^8.1.0",
+  "is-online": "^10.0.0",
   "node-thermal-printer": "^4.4.1",
   "socket.io-client": "^4.7.2",
   "winston": "^3.11.0"
  },
  "devDependencies": {
   "electron": "^28.0.0",
-  "electron-builder": "^24.6.4"
+  "electron-builder": "^24.6.4",
+  "electron-rebuild": "^3.2.9"
  },
  "build": {
   "appId": "com.woocommerce.dokanprint",
   "productName": "xcondo autoprinter sales",
   "directories": {
-    "output": "build-output"
+    "output": "./dist"
   },
+  "extraResources": [
+    {
+      "from": "assets",
+      "to": "assets"
+    }
+  ],
   "win": {
     "target": [
       "nsis"
     ],
     "icon": "build/icon.ico"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true
   }
  }
-
 }

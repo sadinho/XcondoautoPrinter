@@ -24,6 +24,50 @@ function log(message) {
 }
 
 /**
+ * Configura o tamanho do papel da impressora
+ * @param {string} printerName - Nome da impressora
+ * @returns {Promise<boolean>} Sucesso da operação
+ */
+async function configurePrinterPaperSize(printerName) {
+  try {
+    log(`Configurando tamanho do papel para impressora "${printerName}"`);
+
+    // Executa um comando para configurar o tamanho do papel
+    // Isso usa o DevMode via PowerShell para modificar a configuração
+    const psCommand = `
+      Add-Type -AssemblyName System.Drawing.Printing;
+      $printers = [System.Drawing.Printing.PrinterSettings]::InstalledPrinters;
+      $found = $false;
+      foreach ($printer in $printers) {
+        if ($printer -eq "${printerName}") {
+          $found = $true;
+          $settings = New-Object System.Drawing.Printing.PrinterSettings;
+          $settings.PrinterName = "${printerName}";
+          $ticket = $settings.DefaultPageSettings;
+          $ticket.PaperSize = New-Object System.Drawing.Printing.PaperSize("Custom", 800, 1100);
+          break;
+        }
+      }
+      if (-not $found) { Write-Output "Impressora não encontrada"; exit 1; }
+      Write-Output "Configuração aplicada com sucesso";
+    `;
+
+    // Salva o comando em um arquivo temporário
+    const psScriptPath = path.join(os.tmpdir(), 'configure_printer.ps1');
+    fs.writeFileSync(psScriptPath, psCommand);
+
+    // Executa o script PowerShell
+    await execPromise(`powershell -ExecutionPolicy Bypass -File "${psScriptPath}"`);
+
+    log('Configuração do tamanho do papel aplicada com sucesso');
+    return true;
+  } catch (error) {
+    log(`Erro ao configurar tamanho do papel: ${error.message}`);
+    return false;
+  }
+}
+
+/**
  * Define uma impressora como padrão no sistema
  * @param {string} printerName - Nome da impressora
  * @returns {Promise<string>} Nome da impressora padrão anterior
@@ -81,54 +125,82 @@ function translateOrderStatus(status) {
 function createOrderFile(order) {
   try {
     log(`Criando arquivo para o pedido #${order.id}`);
-    
+    let contentWidth = 48; // Valor padrão
+
+    try {
+      // Tenta obter o valor da configuração
+      const config = require('./config.json');
+      if (config && config.printWidth) {
+        contentWidth = parseInt(config.printWidth);
+        log(`Usando largura configurada: ${contentWidth} caracteres`);
+      }
+    } catch (configError) {
+      log(`Erro ao carregar configuração de largura: ${configError.message}`);
+    }
+
     // Criar diretório temporário se não existir
     const tempDir = path.join(os.tmpdir(), 'print-temp');
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
-    
+
     // Formata a data do pedido
     const orderDate = new Date(order.date_created || new Date());
     const formattedDate = orderDate.toLocaleDateString('pt-BR');
     const formattedTime = orderDate.toLocaleTimeString('pt-BR');
-    
+
+    // Define a largura do conteúdo em caracteres
+    // AJUSTE ESTE VALOR para tornar a impressão mais larga
+
+    // Função para centralizar texto
+    const centerText = (text) => {
+      const spaces = Math.max(0, Math.floor((contentWidth - text.length) / 2));
+      return ' '.repeat(spaces) + text;
+    };
+
+    // Função para criar linha de separação
+    const separator = '='.repeat(contentWidth);
+    const dashedSeparator = '-'.repeat(contentWidth);
+
     // Conteúdo do pedido formatado para impressão
     let content = '';
-    
+
     // Cabeçalho
-    content += '=======================================\n';
-    content += '           NOVO PEDIDO                 \n';
-    content += '          Xcondo Shop                  \n';
-    content += '=======================================\n\n';
-    
+    content += separator + '\n';
+    content += centerText('NOVO PEDIDO') + '\n';
+    content += centerText('Xcondo Shop') + '\n';
+    content += separator + '\n\n';
+
     // Informações do pedido
     content += `PEDIDO #${order.id}\n`;
+    if (order.number) {
+      content += `${order.number}\n`;
+    }
     content += `Data: ${formattedDate} ${formattedTime}\n`;
-    
+
     // Status do pedido
     if (order.status) {
       content += `Status: ${translateOrderStatus(order.status)}\n`;
     }
-    
+
     // DESTAQUE PARA O PAGAMENTO
     content += '\n';
-    content += '---------------------------------------\n';
+    content += dashedSeparator + '\n';
     content += 'INFORMAÇÕES DE PAGAMENTO:\n';
-    
+
     // Tipo de pagamento (mais detalhado)
     if (order.payment_method_title) {
       content += `Método: ${order.payment_method_title}\n`;
     }
-    
+
     // Código do método de pagamento (útil para referência)
     if (order.payment_method) {
       content += `Tipo: ${order.payment_method}\n`;
     }
-    
+
     // Status do pagamento
     let paymentStatus = 'Não confirmado';
-    
+
     if (order.date_paid) {
       const datePaid = new Date(order.date_paid);
       paymentStatus = `Confirmado em ${datePaid.toLocaleDateString('pt-BR')}`;
@@ -143,22 +215,22 @@ function createOrderFile(order) {
     } else if (order.status === 'refunded') {
       paymentStatus = 'Reembolsado';
     }
-    
+
     content += `Status: ${paymentStatus}\n`;
-    
+
     // Transação (se disponível)
     if (order.transaction_id) {
       content += `Transação: ${order.transaction_id}\n`;
     }
-    
+
     // Verificar se tem informações de pagamento nos metadados
     if (order.meta_data) {
-      const paymentMeta = order.meta_data.filter(m => 
-        m.key.includes('payment') || 
-        m.key.includes('_paid') || 
+      const paymentMeta = order.meta_data.filter(m =>
+        m.key.includes('payment') ||
+        m.key.includes('_paid') ||
         m.key.includes('transaction')
       );
-      
+
       if (paymentMeta.length > 0) {
         content += 'Dados adicionais:\n';
         paymentMeta.forEach(meta => {
@@ -167,72 +239,72 @@ function createOrderFile(order) {
             .replace('_', ' ')
             .replace(/([A-Z])/g, ' $1')
             .trim();
-          
+
           content += `  ${keyName}: ${meta.value}\n`;
         });
       }
     }
-    
+
     content += '\n';
-    
+
     // Informações do cliente
-    content += '---------------------------------------\n';
+    content += dashedSeparator + '\n';
     content += 'CLIENTE:\n';
-    
+
     if (order.billing) {
       content += `Nome: ${order.billing.first_name || ''} ${order.billing.last_name || ''}\n`;
-      
+
       if (order.billing.phone) {
         content += `Tel: ${order.billing.phone}\n`;
       }
-      
+
       if (order.billing.email) {
         content += `Email: ${order.billing.email}\n`;
       }
-      
+
       // Endereço completo
       let address = [];
-      
+
       if (order.billing.address_1) {
         address.push(`Endereço: ${order.billing.address_1}`);
       }
-      
+
       if (order.billing.address_2) {
         address.push(`Complemento: ${order.billing.address_2}`);
       }
-      
+
       if (order.billing.neighborhood) {
         address.push(`Bairro: ${order.billing.neighborhood}`);
       }
-      
+
       if (order.billing.city) {
         address.push(`Cidade: ${order.billing.city}`);
       }
-      
+
       if (order.billing.state) {
         address.push(`Estado: ${order.billing.state}`);
       }
-      
+
       if (order.billing.postcode) {
         address.push(`CEP: ${order.billing.postcode}`);
       }
-      
+
       if (address.length > 0) {
         content += address.join('\n') + '\n';
       }
     }
-    
+
     content += '\n';
-    
+
     // Informações do vendedor Dokan (se disponível)
     if (order.store_name || (order.meta_data && order.meta_data.find(m => m.key === '_dokan_vendor_id'))) {
-      content += '---------------------------------------\n';
+      content += dashedSeparator + '\n';
       content += 'VENDEDOR:\n';
-      
+
       if (order.store_name) {
         content += `Loja: ${order.store_name}\n`;
       }
-      
+
       // Tenta encontrar o ID do vendedor nos metadados
       if (order.meta_data) {
         const vendorIdMeta = order.meta_data.find(m => m.key === '_dokan_vendor_id');
@@ -240,19 +312,19 @@ function createOrderFile(order) {
           content += `ID do Vendedor: ${vendorIdMeta.value}\n`;
         }
       }
-      
+
       content += '\n';
     }
-    
+
     // Itens do pedido
-    content += '---------------------------------------\n';
+    content += dashedSeparator + '\n';
     content += 'ITENS DO PEDIDO:\n';
-    
+
     if (order.line_items && order.line_items.length > 0) {
       for (const item of order.line_items) {
         // Nome do produto e quantidade
         content += `${item.quantity || 1}x ${item.name || 'Produto'}\n`;
-        
+
         // Variações do produto (se houver)
         if (item.meta_data && item.meta_data.length > 0) {
           for (const meta of item.meta_data) {
@@ -262,90 +334,90 @@ function createOrderFile(order) {
             }
           }
         }
-        
+
         // Preço unitário e subtotal
         if (item.price) {
           content += `   Preço: R$ ${parseFloat(item.price).toFixed(2)}\n`;
         }
-        
+
         if (item.subtotal) {
           content += `   Subtotal: R$ ${parseFloat(item.subtotal).toFixed(2)}\n`;
         }
-        
+
         content += '\n';
       }
     } else {
       content += 'Nenhum item no pedido\n\n';
     }
-    
+
     // Resumo financeiro
-    content += '---------------------------------------\n';
+    content += dashedSeparator + '\n';
     content += 'RESUMO:\n';
-    
+
     // Subtotal
     if (order.subtotal) {
       content += `Subtotal: R$ ${parseFloat(order.subtotal).toFixed(2)}\n`;
     }
-    
+
     // Frete
     if (order.shipping_total && parseFloat(order.shipping_total) > 0) {
       content += `Frete: R$ ${parseFloat(order.shipping_total).toFixed(2)}\n`;
     }
-    
+
     // Desconto
     if (order.discount_total && parseFloat(order.discount_total) > 0) {
       content += `Desconto: -R$ ${parseFloat(order.discount_total).toFixed(2)}\n`;
     }
-    
+
     // Impostos
     if (order.total_tax && parseFloat(order.total_tax) > 0) {
       content += `Impostos: R$ ${parseFloat(order.total_tax).toFixed(2)}\n`;
     }
-    
+
     // Total geral
     content += `TOTAL: R$ ${parseFloat(order.total || 0).toFixed(2)}\n\n`;
-    
+
     // Observações do cliente
     if (order.customer_note) {
-      content += '---------------------------------------\n';
+      content += dashedSeparator + '\n';
       content += 'OBSERVAÇÕES DO CLIENTE:\n';
       content += `${order.customer_note}\n\n`;
     }
-    
+
     // Informações sobre o método de envio (se disponível)
     if (order.shipping_lines && order.shipping_lines.length > 0) {
-      content += '---------------------------------------\n';
+      content += dashedSeparator + '\n';
       content += 'MÉTODO DE ENVIO:\n';
-      
+
       for (const shipping of order.shipping_lines) {
         content += `${shipping.method_title || 'Método de envio'}\n`;
-        
+
         if (shipping.method_id) {
           content += `ID do método: ${shipping.method_id}\n`;
         }
-        
+
         if (shipping.total) {
           content += `Custo: R$ ${parseFloat(shipping.total).toFixed(2)}\n`;
         }
       }
-      
+
       content += '\n';
     }
-    
+
     // Rodapé
-    content += '=======================================\n';
+    content += separator + '\n';
     content += `Impresso em: ${new Date().toLocaleString('pt-BR')}\n`;
-    content += '=======================================\n';
-    
+    content += separator + '\n';
+
     // Adicionar várias linhas em branco para facilitar corte manual
     content += '\n\n\n\n\n\n\n\n\n\n';
-    
+
     // Caminho do arquivo
     const filePath = path.join(tempDir, `order-${order.id}-${Date.now()}.txt`);
-    
+
     // Salvar conteúdo no arquivo
     fs.writeFileSync(filePath, content, 'utf8');
-    
+
     log(`Arquivo criado: ${filePath}`);
     return filePath;
   } catch (error) {
@@ -553,6 +625,9 @@ async function printOrder(order, printerName) {
     log(`==== INICIANDO IMPRESSÃO DO PEDIDO #${order.id} ====`);
     log(`Impressora solicitada: ${printerName}`);
 
+    // Tenta configurar o tamanho do papel (opcional)
+    await configurePrinterPaperSize(printerName);
+
     // Salva a impressora padrão atual
     const defaultPrinter = await setDefaultPrinter(printerName);
 
@@ -586,6 +661,7 @@ async function printOrder(order, printerName) {
     throw error;
   }
 }
+
 
 /**
  * Imprime um teste

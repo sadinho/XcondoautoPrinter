@@ -36,6 +36,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   isAuthenticated: () => ipcRenderer.invoke('isAuthenticated'),
   tabClicked: (tabId) => ipcRenderer.invoke('tab-clicked', tabId),
   clearAuthentication: () => ipcRenderer.invoke('clear-authentication'),
+  clearProcessedOrders: () => ipcRenderer.invoke('clear-processed-orders'),
+  listVendors: () => ipcRenderer.invoke('list-vendors'),
+  testAPI: (config) => ipcRenderer.invoke('test-api', config),
+  diagnoseConfigError: (config) => ipcMain.invoke('diagnose-config-error', config),
 
   // Obter o status atual do monitoramento
   getMonitoringStatus: () => ipcRenderer.invoke('getMonitoringStatus'),

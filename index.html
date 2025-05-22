@@ -339,6 +339,21 @@
     .config-button:hover {
       color: #2980b9;
     }
+
+    .secondary-button {
+      background-color: #3498db;
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-left: 10px;
+    }
+
+    .secondary-button:hover {
+      background-color: #2980b9;
+    }
   </style>
 </head>
 
@@ -356,6 +371,10 @@
       </div>
 
       <div id="config" class="tab-content active">
+        <h3>Gerenciamento de pedidos processados</h3>
+        <p>Use o botão abaixo para limpar o histórico de pedidos já impressos, o que fará com que eles sejam impressos
+          novamente:</p>
+        <button id="clearProcessedOrders">Limpar Pedidos Processados</button>
         <h2>Configurações da API</h2>
         <div class="form-group">
           <label for="apiUrl">URL da Loja (ex: https://sualoja.com.br)</label>
@@ -372,11 +391,12 @@
           <input type="password" id="password" placeholder="senha">
         </div>
 
-        <div class="form-group">
-          <label for="vendorId">ID do Vendedor (Dokan)</label>
-          <input type="text" id="vendorId" placeholder="123">
-        </div>
+        <!-- Modifique o campo vendorId no index.html para indicar que é opcional -->
 
+        <div class="form-group">
+          <label for="vendorId">ID do Vendedor (Xcondo shop) - Opcional, será detectado automaticamente</label>
+          <input type="text" id="vendorId" placeholder="Deixe em branco para detecção automática">
+        </div>
         <div class="form-group">
           <label for="checkInterval">Intervalo de Verificação (segundos)</label>
           <input type="text" id="checkInterval" placeholder="60" value="60">
@@ -395,7 +415,17 @@
             <input type="checkbox" id="autostart"> Iniciar monitoramento automaticamente
           </label>
         </div>
-
+        <div class="test-print-container">
+          <h3>Teste de API</h3>
+          <p>Clique no botão abaixo para verificar se a API está retornando os pedidos corretamente:</p>
+          <button id="testAPI">Testar Busca de Pedidos</button>
+          <div id="apiTestResults" style="margin-top: 10px; max-height: 200px; overflow-y: auto; display: none;"></div>
+        </div>
+        <div class="form-group">
+          <label for="printWidth">Largura da Impressão (caracteres)</label>
+          <input type="number" id="printWidth" min="30" max="80" value="48" placeholder="48">
+          <small>Ajuste conforme a capacidade da sua impressora. Geralmente entre 30 e 80 caracteres por linha.</small>
+        </div>
         <div class="test-print-container">
           <h3>Teste de Impressão</h3>
           <p>Clique no botão abaixo para imprimir um recibo de teste:</p>
