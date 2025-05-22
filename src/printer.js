@@ -118,14 +118,14 @@ function translateOrderStatus(status) {
 }
 
 /**
- * Cria um arquivo com o conteúdo do pedido com layout melhorado
+ * Cria um arquivo com o conteúdo do pedido com layout otimizado para economizar papel
  * @param {Object} order - Dados do pedido
  * @returns {string} Caminho do arquivo
  */
 function createOrderFile(order) {
   try {
     log(`Criando arquivo para o pedido #${order.id}`);
-    let contentWidth = 48; // Valor padrão
+    let contentWidth = 48; // Reduzido de 56 para 48 para economizar papel
 
     try {
       // Tenta obter o valor da configuração
@@ -147,10 +147,10 @@ function createOrderFile(order) {
     // Formata a data do pedido
     const orderDate = new Date(order.date_created || new Date());
     const formattedDate = orderDate.toLocaleDateString('pt-BR');
-    const formattedTime = orderDate.toLocaleTimeString('pt-BR');
-
-    // Define a largura do conteúdo em caracteres
-    // AJUSTE ESTE VALOR para tornar a impressão mais larga
+    const formattedTime = orderDate.toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
 
     // Função para centralizar texto
     const centerText = (text) => {
@@ -158,56 +158,93 @@ function createOrderFile(order) {
       return ' '.repeat(spaces) + text;
     };
 
-    // Função para criar linha de separação
-    const separator = '='.repeat(contentWidth);
-    const dashedSeparator = '-'.repeat(contentWidth);
+    // Função para abreviar métodos de pagamento
+    const abbreviatePaymentMethod = (methodTitle, methodCode) => {
+      // Mapeamento de abreviações comuns
+      const abbreviations = {
+        'Pagamento via PIX': 'PIX',
+        'Pagar na entrega com cartão de débito/crédito': 'Cartão na entrega',
+        'Cartão de crédito': 'Cartão crédito',
+        'Cartão de débito': 'Cartão débito',
+        'Boleto bancário': 'Boleto',
+        'Transferência bancária': 'Transferência',
+        'Pagamento na entrega': 'Na entrega',
+        'Dinheiro na entrega': 'Dinheiro',
+        'Mercado Pago': 'MP',
+        'PayPal': 'PayPal',
+        'PagSeguro': 'PagSeguro'
+      };
 
-    // Conteúdo do pedido formatado para impressão
+      let abbreviated = methodTitle;
+
+      // Verifica se existe uma abreviação específica
+      if (abbreviations[methodTitle]) {
+        abbreviated = abbreviations[methodTitle];
+      } else {
+        // Se a descrição for muito longa, trunca mantendo palavras-chave
+        if (methodTitle && methodTitle.length > 25) {
+          // Procura por palavras-chave importantes
+          if (methodTitle.toLowerCase().includes('pix')) {
+            abbreviated = 'PIX';
+          } else if (methodTitle.toLowerCase().includes('cartão') && methodTitle.toLowerCase().includes('entrega')) {
+            abbreviated = 'Cartão na entrega';
+          } else if (methodTitle.toLowerCase().includes('cartão')) {
+            abbreviated = methodTitle.toLowerCase().includes('débito') ? 'Cartão débito' : 'Cartão crédito';
+          } else if (methodTitle.toLowerCase().includes('boleto')) {
+            abbreviated = 'Boleto';
+          } else if (methodTitle.toLowerCase().includes('entrega')) {
+            abbreviated = 'Na entrega';
+          } else {
+            // Trunca para as primeiras 20 caracteres + "..."
+            abbreviated = methodTitle.substring(0, 20) + '...';
+          }
+        }
+      }
+
+      return abbreviated;
+    };
+
+    // Separadores mais compactos
+    const separator = '='.repeat(contentWidth);
+    const lightSeparator = '-'.repeat(contentWidth);
+
+    // Conteúdo do pedido formatado
     let content = '';
 
-    // Cabeçalho
+    // Cabeçalho compacto
     content += separator + '\n';
-    content += centerText('NOVO PEDIDO') + '\n';
-    content += centerText('Xcondo Shop') + '\n';
-    content += separator + '\n\n';
+    content += centerText('NOVO PEDIDO - Xcondo Shop') + '\n';
+    content += separator + '\n';
 
-    // Informações do pedido
-    content += `PEDIDO #${order.id}\n`;
+    // Informações básicas em uma linha
+    content += `#${order.id} | ${formattedDate} ${formattedTime}\n`;
     if (order.number) {
-      content += `${order.number}\n`;
+      content += `Nº: ${order.number} | `;
     }
-    content += `Data: ${formattedDate} ${formattedTime}\n`;
-
-    // Status do pedido
     if (order.status) {
       content += `Status: ${translateOrderStatus(order.status)}\n`;
     }
 
-    // DESTAQUE PARA O PAGAMENTO
-    content += '\n';
-    content += dashedSeparator + '\n';
-    content += 'INFORMAÇÕES DE PAGAMENTO:\n';
+    // PAGAMENTO - Seção compacta
+    content += lightSeparator + '\n';
+    content += 'PAGAMENTO: ';
 
-    // Tipo de pagamento (mais detalhado)
     if (order.payment_method_title) {
-      content += `Método: ${order.payment_method_title}\n`;
+      const abbreviatedMethod = abbreviatePaymentMethod(order.payment_method_title, order.payment_method);
+      content += abbreviatedMethod;
+    } else if (order.payment_method) {
+      content += order.payment_method.toUpperCase();
     }
 
-    // Código do método de pagamento (útil para referência)
-    if (order.payment_method) {
-      content += `Tipo: ${order.payment_method}\n`;
-    }
-
-    // Status do pagamento
+    // Status do pagamento na mesma linha
     let paymentStatus = 'Não confirmado';
-
     if (order.date_paid) {
       const datePaid = new Date(order.date_paid);
-      paymentStatus = `Confirmado em ${datePaid.toLocaleDateString('pt-BR')}`;
+      paymentStatus = `Pago em ${datePaid.toLocaleDateString('pt-BR')}`;
     } else if (order.status === 'processing' || order.status === 'completed') {
       paymentStatus = 'Confirmado';
     } else if (order.status === 'on-hold') {
-      paymentStatus = 'Aguardando confirmação';
+      paymentStatus = 'Aguardando';
     } else if (order.status === 'failed') {
       paymentStatus = 'Falhou';
     } else if (order.status === 'pending') {
@@ -216,201 +253,205 @@ function createOrderFile(order) {
       paymentStatus = 'Reembolsado';
     }
 
-    content += `Status: ${paymentStatus}\n`;
+    content += ` | ${paymentStatus}`;
 
-    // Transação (se disponível)
+    // Transação se disponível
     if (order.transaction_id) {
-      content += `Transação: ${order.transaction_id}\n`;
+      content += ` | ID: ${order.transaction_id}`;
     }
 
-    // Verificar se tem informações de pagamento nos metadados
+    // Verificar se tem informações úteis de pagamento nos metadados
     if (order.meta_data) {
-      const paymentMeta = order.meta_data.filter(m =>
-        m.key.includes('payment') ||
-        m.key.includes('_paid') ||
-        m.key.includes('transaction')
-      );
+      const paymentMeta = order.meta_data.filter(m => {
+        // Filtrar apenas metadados úteis de pagamento
+        const isPaymentRelated = (
+          m.key.includes('payment') ||
+          m.key.includes('_paid') ||
+          m.key.includes('transaction')
+        );
 
+        // Excluir metadados inúteis ou objetos complexos
+        const isUseful = (
+          !m.key.includes('dokan_commission') &&
+          !m.key.includes('_dokan_') &&
+          typeof m.value === 'string' &&
+          m.value !== '[object Object]' &&
+          m.value.length > 0 &&
+          m.value.length < 100 // Evitar valores muito longos
+        );
+
+        return isPaymentRelated && isUseful;
+      });
+
+      // Só exibe se houver metadados realmente úteis
       if (paymentMeta.length > 0) {
-        content += 'Dados adicionais:\n';
-        paymentMeta.forEach(meta => {
-          // Formatar o nome da chave para exibição
+        const additionalInfo = paymentMeta.map(meta => {
           const keyName = meta.key
-            .replace('_', ' ')
+            .replace(/_/g, ' ')
             .replace(/([A-Z])/g, ' $1')
             .trim();
+          return `${keyName}: ${meta.value}`;
+        }).join(' | ');
 
-          content += `  ${keyName}: ${meta.value}\n`;
-        });
+        if (additionalInfo) {
+          content += ` | ${additionalInfo}`;
+        }
       }
     }
 
     content += '\n';
 
-    // Informações do cliente
-    content += dashedSeparator + '\n';
+    // CLIENTE - Informações condensadas
+    content += lightSeparator + '\n';
     content += 'CLIENTE:\n';
 
     if (order.billing) {
-      content += `Nome: ${order.billing.first_name || ''} ${order.billing.last_name || ''}\n`;
-
+      // Nome e contato em uma linha
+      content += `${order.billing.first_name || ''} ${order.billing.last_name || ''}`;
       if (order.billing.phone) {
-        content += `Tel: ${order.billing.phone}\n`;
+        content += ` | ${order.billing.phone}`;
       }
+      content += '\n';
 
       if (order.billing.email) {
-        content += `Email: ${order.billing.email}\n`;
+        content += `${order.billing.email}\n`;
       }
 
-      // Endereço completo
-      let address = [];
+      // Endereço compacto
+      let addressParts = [];
+      if (order.billing.address_1) addressParts.push(order.billing.address_1);
+      if (order.billing.address_2) addressParts.push(order.billing.address_2);
+      if (order.billing.neighborhood) addressParts.push(order.billing.neighborhood);
 
-      if (order.billing.address_1) {
-        address.push(`Endereço: ${order.billing.address_1}`);
+      if (addressParts.length > 0) {
+        content += `${addressParts.join(', ')}\n`;
       }
 
-      if (order.billing.address_2) {
-        address.push(`Complemento: ${order.billing.address_2}`);
-      }
+      // Cidade, Estado, CEP em uma linha
+      let locationParts = [];
+      if (order.billing.city) locationParts.push(order.billing.city);
+      if (order.billing.state) locationParts.push(order.billing.state);
+      if (order.billing.postcode) locationParts.push(`CEP: ${order.billing.postcode}`);
 
-      if (order.billing.neighborhood) {
-        address.push(`Bairro: ${order.billing.neighborhood}`);
-      }
-
-      if (order.billing.city) {
-        address.push(`Cidade: ${order.billing.city}`);
-      }
-
-      if (order.billing.state) {
-        address.push(`Estado: ${order.billing.state}`);
-      }
-
-      if (order.billing.postcode) {
-        address.push(`CEP: ${order.billing.postcode}`);
-      }
-
-      if (address.length > 0) {
-        content += address.join('\n') + '\n';
+      if (locationParts.length > 0) {
+        content += `${locationParts.join(' | ')}\n`;
       }
     }
 
-    content += '\n';
-
-    // Informações do vendedor Dokan (se disponível)
+    // VENDEDOR (se aplicável) - mais compacto
     if (order.store_name || (order.meta_data && order.meta_data.find(m => m.key === '_dokan_vendor_id'))) {
-      content += dashedSeparator + '\n';
-      content += 'VENDEDOR:\n';
+      content += `Loja: ${order.store_name || 'N/A'}`;
 
-      if (order.store_name) {
-        content += `Loja: ${order.store_name}\n`;
-      }
-
-      // Tenta encontrar o ID do vendedor nos metadados
       if (order.meta_data) {
         const vendorIdMeta = order.meta_data.find(m => m.key === '_dokan_vendor_id');
         if (vendorIdMeta) {
-          content += `ID do Vendedor: ${vendorIdMeta.value}\n`;
+          content += ` | ID: ${vendorIdMeta.value}`;
         }
       }
-
       content += '\n';
     }
 
-    // Itens do pedido
-    content += dashedSeparator + '\n';
-    content += 'ITENS DO PEDIDO:\n';
+    // ITENS - Layout mais compacto
+    content += lightSeparator + '\n';
+    content += 'ITENS:\n';
 
     if (order.line_items && order.line_items.length > 0) {
       for (const item of order.line_items) {
-        // Nome do produto e quantidade
-        content += `${item.quantity || 1}x ${item.name || 'Produto'}\n`;
+        // Linha principal: Qtd, Nome, Código (se houver)
+        let itemLine = `${item.quantity || 1}x ${item.name || 'Produto'}`;
 
-        // Variações do produto (se houver)
-        if (item.meta_data && item.meta_data.length > 0) {
-          for (const meta of item.meta_data) {
-            // Filtra apenas metadados visíveis (que não começam com _)
-            if (!meta.key.startsWith('_')) {
-              content += `   ${meta.key}: ${meta.value}\n`;
-            }
-          }
+        // Adicionar código/SKU do produto se disponível
+        if (item.sku) {
+          itemLine += ` [${item.sku}]`;
+        } else if (item.product_id) {
+          itemLine += ` [ID:${item.product_id}]`;
         }
 
-        // Preço unitário e subtotal
+        content += `${itemLine}\n`;
+
+        // // Variações em linha única (se houver)
+        // if (item.meta_data && item.meta_data.length > 0) {
+        //   const variations = item.meta_data
+        //     .filter(meta => !meta.key.startsWith('_'))
+        //     .map(meta => `${meta.key}: ${meta.value}`)
+        //     .join(' | ');
+
+        //   if (variations) {
+        //     content += `  ${variations}\n`;
+        //   }
+        // }
+
+        // Preços na mesma linha
+        let priceInfo = [];
         if (item.price) {
-          content += `   Preço: R$ ${parseFloat(item.price).toFixed(2)}\n`;
+          priceInfo.push(`Unit: R$ ${parseFloat(item.price).toFixed(2)}`);
         }
-
         if (item.subtotal) {
-          content += `   Subtotal: R$ ${parseFloat(item.subtotal).toFixed(2)}\n`;
+          priceInfo.push(`Total: R$ ${parseFloat(item.subtotal).toFixed(2)}`);
         }
 
-        content += '\n';
+        if (priceInfo.length > 0) {
+          content += `  ${priceInfo.join(' | ')}\n`;
+        }
       }
     } else {
-      content += 'Nenhum item no pedido\n\n';
+      content += 'Nenhum item\n';
     }
 
-    // Resumo financeiro
-    content += dashedSeparator + '\n';
-    content += 'RESUMO:\n';
+    // RESUMO FINANCEIRO - Uma linha cada
+    content += lightSeparator + '\n';
 
-    // Subtotal
+    // Valores em formato compacto
+    const financialItems = [];
+
     if (order.subtotal) {
-      content += `Subtotal: R$ ${parseFloat(order.subtotal).toFixed(2)}\n`;
+      financialItems.push(`Subtotal: R$ ${parseFloat(order.subtotal).toFixed(2)}`);
     }
 
-    // Frete
     if (order.shipping_total && parseFloat(order.shipping_total) > 0) {
-      content += `Frete: R$ ${parseFloat(order.shipping_total).toFixed(2)}\n`;
+      financialItems.push(`Frete: R$ ${parseFloat(order.shipping_total).toFixed(2)}`);
     }
 
-    // Desconto
     if (order.discount_total && parseFloat(order.discount_total) > 0) {
-      content += `Desconto: -R$ ${parseFloat(order.discount_total).toFixed(2)}\n`;
+      financialItems.push(`Desconto: -R$ ${parseFloat(order.discount_total).toFixed(2)}`);
     }
 
-    // Impostos
     if (order.total_tax && parseFloat(order.total_tax) > 0) {
-      content += `Impostos: R$ ${parseFloat(order.total_tax).toFixed(2)}\n`;
+      financialItems.push(`Impostos: R$ ${parseFloat(order.total_tax).toFixed(2)}`);
     }
 
-    // Total geral
-    content += `TOTAL: R$ ${parseFloat(order.total || 0).toFixed(2)}\n\n`;
-
-    // Observações do cliente
-    if (order.customer_note) {
-      content += dashedSeparator + '\n';
-      content += 'OBSERVAÇÕES DO CLIENTE:\n';
-      content += `${order.customer_note}\n\n`;
+    // Mostrar itens financeiros em uma ou duas linhas
+    if (financialItems.length > 0) {
+      content += financialItems.join(' | ') + '\n';
     }
 
-    // Informações sobre o método de envio (se disponível)
+    // Total destacado
+    content += `TOTAL: R$ ${parseFloat(order.total || 0).toFixed(2)}\n`;
+
+    // ENVIO (se disponível) - formato compacto
     if (order.shipping_lines && order.shipping_lines.length > 0) {
-      content += dashedSeparator + '\n';
-      content += 'MÉTODO DE ENVIO:\n';
-
-      for (const shipping of order.shipping_lines) {
-        content += `${shipping.method_title || 'Método de envio'}\n`;
-
-        if (shipping.method_id) {
-          content += `ID do método: ${shipping.method_id}\n`;
+      const shippingInfo = order.shipping_lines.map(shipping => {
+        let info = shipping.method_title || 'Envio';
+        if (shipping.total && parseFloat(shipping.total) > 0) {
+          info += ` (R$ ${parseFloat(shipping.total).toFixed(2)})`;
         }
+        return info;
+      }).join(' | ');
 
-        if (shipping.total) {
-          content += `Custo: R$ ${parseFloat(shipping.total).toFixed(2)}\n`;
-        }
-      }
-
-      content += '\n';
+      content += `Envio: ${shippingInfo}\n`;
     }
 
-    // Rodapé
-    content += separator + '\n';
-    content += `Impresso em: ${new Date().toLocaleString('pt-BR')}\n`;
-    content += separator + '\n';
+    // OBSERVAÇÕES (se houver)
+    if (order.customer_note) {
+      content += `Obs: ${order.customer_note}\n`;
+    }
 
-    // Adicionar várias linhas em branco para facilitar corte manual
-    content += '\n\n\n\n\n\n\n\n\n\n';
+    // Rodapé minimalista
+    content += separator + '\n';
+    content += `Impresso: ${new Date().toLocaleString('pt-BR')}\n`;
+
+    // Apenas 3 linhas em branco para corte (reduzido de 10)
+    content += '\n\n\n';
 
     // Caminho do arquivo
     const filePath = path.join(tempDir, `order-${order.id}-${Date.now()}.txt`);
@@ -418,14 +459,13 @@ function createOrderFile(order) {
     // Salvar conteúdo no arquivo
     fs.writeFileSync(filePath, content, 'utf8');
 
-    log(`Arquivo criado: ${filePath}`);
+    log(`Arquivo otimizado criado: ${filePath}`);
     return filePath;
   } catch (error) {
     log(`Erro ao criar arquivo do pedido: ${error.message}`);
     throw error;
   }
 }
-
 /**
  * Imprime usando Notepad - método mais confiável para impressão física
  * @param {string} filePath - Caminho do arquivo a ser impresso

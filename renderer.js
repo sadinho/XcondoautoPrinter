@@ -820,7 +820,7 @@ saveConfigButton.addEventListener('click', async () => {
 
       // Salva as configurações
       const result = await window.electronAPI.saveConfig(config);
-      
+
       if (result.success) {
         // Se o ID do vendedor foi detectado automaticamente, atualiza o campo
         if (result.detectedVendorId && !config.vendorId) {
@@ -836,15 +836,15 @@ saveConfigButton.addEventListener('click', async () => {
       // Se ocorrer o erro de clonagem, tente diagnosticar o problema
       if (error.message.includes('cloned')) {
         showNotification('error', 'Erro ao salvar configurações: problema de clonagem de objeto. Tentando resolver...');
-        
+
         try {
           // Tente diagnosticar o problema
           const diagResult = await window.electronAPI.diagnoseConfigError(config);
-          
+
           if (diagResult.success) {
             // Se o diagnóstico foi bem-sucedido, tente salvar novamente
             showNotification('info', 'Problema identificado e corrigido. Salvando novamente...');
-            
+
             // Cria um objeto limpo
             const cleanConfig = {
               apiUrl: config.apiUrl,
@@ -856,12 +856,12 @@ saveConfigButton.addEventListener('click', async () => {
               autostart: config.autostart,
               printWidth: config.printWidth
             };
-            
+
             const secondAttempt = await window.electronAPI.saveConfig(cleanConfig);
-            
+
             if (secondAttempt.success) {
               showNotification('success', 'Configurações salvas com sucesso após correção');
-              
+
               if (secondAttempt.detectedVendorId) {
                 vendorIdInput.value = secondAttempt.detectedVendorId;
               }
@@ -943,13 +943,15 @@ testPrintButton.addEventListener('click', async () => {
         name: 'Produto Teste 1',
         quantity: 2,
         price: '29.99',
-        subtotal: '59.98'
+        subtotal: '59.98',
+        sku: '0005'
       },
       {
         name: 'Produto Teste 2',
         quantity: 1,
         price: '39.99',
-        subtotal: '39.99'
+        subtotal: '39.99',
+        sku: '1115'
       }
     ]
   };
@@ -1028,12 +1030,12 @@ clearHistoryButton.addEventListener('click', async () => {
   try {
     const confirmClear = confirm('Tem certeza que deseja limpar o histórico de pedidos?');
     if (!confirmClear) return;
-    
+
     const result = await window.electronAPI.clearOrderHistory();
-    
+
     if (result.success) {
       // Limpa a tabela...
-      
+
       if (result.restarted) {
         showNotification('success', `Histórico de pedidos limpo e monitoramento reiniciado com sucesso`);
       } else {
